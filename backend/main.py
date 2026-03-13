@@ -65,8 +65,8 @@ def get_llm(model_key: str):
         return ChatGroq(
             model_name=info["model_id"],
             api_key=os.environ["GROQ_API_KEY"],
-            temperature=0.3,
-            max_tokens=8000,
+            temperature=0.2,
+            max_tokens=4000,
         )
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {info['provider']}")

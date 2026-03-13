@@ -88,4 +88,4 @@ def build_retriever(file_paths: List[dict], embedding_model):
     for extra_db in all_dbs[1:]:
         merged.merge_from(extra_db)
 
-    return merged.as_retriever(search_kwargs={"k": 10})
+    return merged.as_retriever(search_kwargs={"k": 5})

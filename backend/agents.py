@@ -10,7 +10,7 @@ from langchain_core.tools import tool
 from langchain_google_community import GoogleSearchAPIWrapper
 
 
-def get_combined_context(retriever, query: str, max_chunks: int = 20) -> str:
+def get_combined_context(retriever, query: str, max_chunks: int = 10) -> str:
     """Retrieve and format document chunks for a query."""
     if retriever is None:
         return ""
@@ -236,7 +236,7 @@ def create_tools(retriever, llm):
             google_cse_id=os.environ.get("GOOGLE_CSE_ID", ""),
         )
         try:
-            results = search.results(query, num_results=10)
+            results = search.results(query, num_results=5)
             full_contents = []
             sources = []
             for res in results:
@@ -244,9 +244,9 @@ def create_tools(retriever, llm):
                 link = res.get("link", "No link")
                 sources.append({"title": title, "link": link})
                 try:
-                    resp = requests.get(link, timeout=5)
+                    resp = requests.get(link, timeout=3)
                     soup = BeautifulSoup(resp.text, "html.parser")
-                    text = soup.get_text(separator="\n", strip=True)[:5000]
+                    text = soup.get_text(separator="\n", strip=True)[:3000]
                     full_contents.append(f"Title: {title}\nLink: {link}\nContent: {text}")
                 except Exception as fetch_e:
                     full_contents.append(
