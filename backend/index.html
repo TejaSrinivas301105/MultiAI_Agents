@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>📚 Multi-Agentic RAG — Study Assistant</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#dde3ef;min-height:100vh}
+header{background:linear-gradient(135deg,#141824,#1e2640);padding:14px 28px;border-bottom:1px solid #222c3c;display:flex;align-items:center;gap:12px}
+header h1{font-size:1.3rem;color:#fff;font-weight:700}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.layout{display:flex;height:calc(100vh - 53px)}
+.sidebar{width:275px;min-width:275px;background:#111520;border-right:1px solid #1e2538;padding:18px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:18px}
+.slabel{font-size:.72rem;text-transform:uppercase;color:#556070;letter-spacing:1px;margin-bottom:6px;font-weight:600}
+select,input[type=text],textarea{width:100%;background:#161d2c;border:1px solid #253045;border-radius:8px;color:#dde3ef;padding:9px 12px;font-size:.875rem;outline:none;transition:border-color .2s}
+select:focus,input:focus,textarea:focus{border-color:#4a8de2}
+.upload-zone{border:2px dashed #253045;border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all .2s}
+.upload-zone:hover{border-color:#4a8de2;background:#131b2b}
+.upload-zone input{display:none}
+.upload-zone .icon{font-size:1.8rem}
+.upload-zone p{font-size:.78rem;color:#556070;margin-top:4px}
+.btn{width:100%;padding:9px 14px;border:none;border-radius:8px;cursor:pointer;font-size:.875rem;font-weight:600;transition:opacity .2s,transform .1s}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:#3a7bd5;color:#fff}.btn-primary:hover:not(:disabled){background:#4a8de2}
+.btn-success{background:#1e8a4a;color:#fff}.btn-success:hover:not(:disabled){background:#27ae60}
+.btn-secondary{background:#1e2a3a;color:#9aafc0}.btn-secondary:hover:not(:disabled){background:#253040}
+.btn-sm{width:auto;padding:7px 14px;font-size:.82rem}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600}
+.badge-ok{background:#0d2e1a;color:#3dbe77}
+.badge-warn{background:#2a1f06;color:#e0a020}
+.badge-err{background:#2a0d0d;color:#e04040}
+/* ── Tabs ── */
+.tabs{display:flex;background:#111520;border-bottom:1px solid #1e2538;padding:0 22px;overflow-x:auto;white-space:nowrap}
+.tab{padding:13px 18px;cursor:pointer;font-size:.875rem;color:#556070;border-bottom:3px solid transparent;transition:color .2s,border-color .2s}
+.tab:hover{color:#a0b4cc}
+.tab.active{color:#4a8de2;border-bottom-color:#4a8de2;font-weight:600}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.tab-content{flex:1;overflow-y:auto;padding:22px;display:none}
+.tab-content.active{display:block}
+/* ── Response box ── */
+.response-box{background:#141c2c;border:1px solid #253045;border-radius:10px;padding:18px;min-height:120px;white-space:pre-wrap;font-size:.875rem;line-height:1.75;color:#ccd6e8}
+.response-box.loading{color:#556070;font-style:italic}
+/* ── Agent tag ── */
+.agent-tag{margin-bottom:10px;font-size:.78rem;color:#556070;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chip{background:#1a2e4a;color:#89b4f0;padding:2px 9px;border-radius:4px;font-size:.78rem}
+.chip-sub{background:#1a3a2a;color:#60c090;padding:2px 9px;border-radius:4px;font-size:.78rem}
+/* ── Input rows ── */
+.input-row{display:flex;gap:10px;margin-bottom:16px;align-items:center}
+.input-row input{flex:1}
+/* ── Syllabus tab ── */
+.syl-row{display:flex;gap:10px;margin-bottom:10px;align-items:center}
+.syl-row input{flex:1}
+.syl-row select{width:190px}
+.days-info{font-size:.78rem;padding:8px 13px;border-radius:8px;margin-bottom:14px;display:none}
+.days-info.emergency{background:#2a0d0d;border:1px solid #e04040;color:#e04040}
+.days-info.urgent{background:#2a1a06;border:1px solid #e07020;color:#e09040}
+.days-info.normal{background:#101c2c;border:1px solid #1e4070;color:#7aaee0}
+/* ── Mode hint ── */
+.mode-hint{font-size:.78rem;color:#556070;margin-bottom:12px;padding:8px 12px;background:#111825;border-left:3px solid #253045;border-radius:0 6px 6px 0}
+.mode-hint b{color:#89b4f0}
+/* ── Practice ── */
+.practice-gen-bar{display:flex;gap:10px;margin-bottom:18px;align-items:flex-end}
+.practice-gen-bar>div{flex:1}
+.field-label{font-size:.78rem;color:#556070;display:block;margin-bottom:5px}
+.progress-wrap{margin-bottom:18px}
+.progress-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.progress-track{background:#161d2c;border-radius:6px;height:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#3a7bd5,#27ae60);transition:width .4s}
+.q-card{background:#141c2c;border:1px solid #253045;border-radius:12px;padding:18px;margin-bottom:14px;transition:border-color .3s}
+.q-card.state-correct{border-color:#27ae60}
+.q-card.state-wrong{border-color:#e04040}
+.q-num{font-size:.72rem;color:#556070;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.q-text{font-size:.95rem;font-weight:500;margin-bottom:14px;line-height:1.55}
+.options{display:flex;flex-direction:column;gap:7px}
+.opt-btn{background:#161d2c;border:1px solid #253045;border-radius:8px;padding:9px 13px;cursor:pointer;text-align:left;color:#b0bfd4;font-size:.875rem;transition:all .18s}
+.opt-btn:hover:not(:disabled){background:#1c2840;border-color:#4a8de2}
+.opt-btn.sel{background:#1a2e4a;border-color:#4a8de2;color:#fff}
+.opt-btn.opt-right{background:#0d2e1a;border-color:#27ae60;color:#3dbe77}
+.opt-btn.opt-wrong{background:#2a0d0d;border-color:#e04040;color:#e04040}
+.opt-btn:disabled{cursor:not-allowed}
+.q-actions{display:flex;gap:8px;margin-top:12px}
+.result-box{margin-top:10px;padding:10px 13px;border-radius:8px;font-size:.875rem;display:none}
+.result-box.r-ok{background:#0d2e1a;color:#3dbe77;border:1px solid #27ae60}
+.result-box.r-err{background:#2a0d0d;color:#e04040;border:1px solid #e04040}
+.hint-box{margin-top:9px;padding:9px 13px;border-radius:8px;background:#131e30;border:1px solid #1e4070;color:#7aaee0;font-size:.82rem;display:none}
+.exp-toggle{margin-top:7px;font-size:.78rem;color:#4a8de2;cursor:pointer;text-decoration:underline}
+.exp-content{margin-top:7px;background:#0e1520;border-radius:8px;padding:11px;color:#a0b8d0;font-size:.82rem;line-height:1.65;white-space:pre-wrap;display:none}
+.submit-section{text-align:center;padding:24px 0;display:none}
+.submit-section p{color:#556070;font-size:.875rem;margin-bottom:14px}
+.report-card{background:#141c2c;border:2px solid #3a7bd5;border-radius:12px;padding:24px;margin-top:20px;display:none}
+.report-card h2{color:#4a8de2;margin-bottom:16px;font-size:1.1rem}
+.score-pill{display:inline-block;padding:10px 26px;border-radius:50px;font-size:1.4rem;font-weight:700;margin-bottom:16px}
+.report-body{white-space:pre-wrap;font-size:.875rem;line-height:1.8;color:#c0d0e4}
+/* ── Misc ── */
+.divider{border:none;border-top:1px solid #1e2538;margin:14px 0}
+.file-list{margin-top:6px}
+.file-item{font-size:.78rem;color:#556070;padding:3px 0;border-bottom:1px solid #161d2c}
+.loader{display:inline-block;width:14px;height:14px;border:2px solid #4a8de2;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.msg-ok{color:#3dbe77;font-size:.8rem;margin-top:6px}
+.msg-err{color:#e04040;font-size:.8rem;margin-top:6px}
+.msg-info{color:#7aaee0;font-size:.8rem;margin-top:6px}
+/* ── Agent flow diagram ── */
+.flow-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#111825;border:1px solid #1e2538;border-radius:8px;font-size:.78rem;display:none}
+.flow-node{padding:4px 10px;border-radius:6px;font-weight:600}
+.flow-node.router{background:#1a2e4a;color:#89b4f0}
+.flow-node.tool{background:#1a3a2a;color:#60c090}
+.flow-node.subtool{background:#2a1a06;color:#e09040}
+.flow-arrow{color:#556070;font-size:.9rem}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <span style="font-size:1.4rem">📚</span>
+  <h1>Multi-Agentic RAG — Study Assistant</h1>
+  <div class="header-right">
+    <span id="uploadBadge" class="badge badge-warn">No PDFs uploaded</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar">
+
+    <div>
+      <div class="slabel">🤖 Groq Model</div>
+      <select id="modelSelect">
+        {% for id, name in models.items() %}
+        <option value="{{ id }}" {% if id=="llama-3.3-70b-versatile" %}selected{% endif %}>
+          {{ name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <div class="slabel">📄 Upload PDFs</div>
+      <label class="upload-zone" for="pdfInput">
+        <div class="icon">📂</div>
+        <strong>Click to upload</strong>
+        <p>Multiple PDFs supported</p>
+        <input type="file" id="pdfInput" accept=".pdf" multiple/>
+      </label>
+      <div id="fileList" class="file-list"></div>
+      <br/>
+      <button class="btn btn-primary" id="uploadBtn" onclick="uploadFiles()">
+        ⬆️ Upload &amp; Index
+      </button>
+      <div id="uploadMsg"></div>
+    </div>
+
+    <hr class="divider"/>
+
+    <div>
+      <div class="slabel">⚙️ Stack</div>
+      <div style="font-size:.78rem;color:#556070;line-height:2">
+        <div>🧠 <b>LLM:</b> Groq</div>
+        <div>📐 <b>Embeddings:</b> Gemini</div>
+        <div>🗄️ <b>Vector DB:</b> FAISS</div>
+        <div>🔗 <b>Orchestration:</b> LangGraph</div>
+      </div>
+    </div>
+
+    <hr class="divider"/>
+
+    <div>
+      <div class="slabel">ℹ️ Mode → Agents</div>
+      <div style="font-size:.75rem;color:#556070;line-height:2">
+        <div>🤖 <b>Chat:</b> All 6 agents (auto-classify)</div>
+        <div>📖 <b>Syllabus:</b> exam_prep / summarizer / notes_maker</div>
+        <div>💡 <b>Concept:</b> concept_explainer / summarizer</div>
+        <div>📝 <b>Practice:</b> mcq / concept / exam_prep / summarizer</div>
+        <div style="margin-top:4px;color:#3a5570">↩ All modes fall back to search_agent if no PDF context</div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('chat')">🤖 All-in-one Chat</div>
+      <div class="tab"        onclick="switchTab('syllabus')">📖 Syllabus Explainer</div>
+      <div class="tab"        onclick="switchTab('concept')">💡 Concept Explainer</div>
+      <div class="tab"        onclick="switchTab('practice')">📝 Practice Mode</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB 1 — All-in-one Chat
+         Agents: summarizer, mcq_generator,
+                 notes_maker, exam_prep_agent,
+                 concept_explainer, search_agent
+    ══════════════════════════════════════ -->
+    <div class="tab-content active" id="tab-chat">
+      <div class="mode-hint">
+        🤖 <b>All-in-one Chat</b> — auto-routes your query to the best agent.<br/>
+        Try: <i>"I have exam in 2 days, help me"</i> · <i>"summarize chapter 1"</i> · <i>"generate 5 MCQs on trees"</i> · <i>"explain binary search"</i>
+      </div>
+      <div class="input-row">
+        <input type="text" id="chatQuery"
+          placeholder="Ask anything — exam help, summarize, explain, notes, MCQs..."
+          onkeydown="if(event.key==='Enter')sendChat()"/>
+        <button class="btn btn-primary btn-sm" style="width:110px" onclick="sendChat()">Send ↗</button>
+      </div>
+      <!-- Agent flow display -->
+      <div class="flow-bar" id="chatFlow">
+        <div class="flow-node router">Router</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node tool" id="chatFlowTool"></div>
+        <span class="flow-arrow" id="chatFlowArrow2" style="display:none">→</span>
+        <div class="flow-node subtool" id="chatFlowSubtool" style="display:none"></div>
+      </div>
+      <div class="response-box" id="chatRes">Your answer will appear here...</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB 2 — Syllabus Explainer
+         Agents: exam_prep_agent (default),
+                 summarizer (if "summarize"),
+                 notes_maker (if "notes"),
+                 search_agent (fallback)
+    ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-syllabus">
+      <div class="mode-hint">
+        📖 <b>Syllabus Explainer</b> — generates topic overview, priorities &amp; revision plan.<br/>
+        Agents used: <b>exam_prep_agent</b> · <b>summarizer</b> · <b>notes_maker</b> · <b>search_agent</b> (fallback)
+      </div>
+      <div class="syl-row">
+        <input type="text" id="syllabusQuery"
+          placeholder="e.g. Unit 2: Trees &amp; Graphs — or leave blank for full syllabus"
+          onkeydown="if(event.key==='Enter')sendSyllabus()"/>
+        <select id="examDays" onchange="updateDaysInfo()">
+          <option value="">📅 Days until exam</option>
+          <option value="1">1 day left 🚨</option>
+          <option value="2">2 days left 🔥</option>
+          <option value="3">3 days left ⚡</option>
+          <option value="5">5 days left</option>
+          <option value="7">7 days left</option>
+          <option value="10">10 days left</option>
+          <option value="14">2 weeks left</option>
+          <option value="21">3 weeks left</option>
+          <option value="30">1 month left</option>
+        </select>
+        <button class="btn btn-primary btn-sm" style="width:130px" onclick="sendSyllabus()">📖 Generate</button>
+      </div>
+      <div class="days-info" id="daysInfo"></div>
+      <div class="flow-bar" id="syllabusFlow">
+        <div class="flow-node router">Router</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node tool" id="syllabusFlowTool"></div>
+        <span class="flow-arrow" id="syllabusFlowArrow2" style="display:none">→</span>
+        <div class="flow-node subtool" id="syllabusFlowSubtool" style="display:none"></div>
+      </div>
+      <div class="response-box" id="syllabusRes">Upload a syllabus PDF, select days until exam, and click Generate...</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB 3 — Concept Explainer
+         Agents: concept_explainer (default),
+                 summarizer (if "summarize"),
+                 search_agent (fallback)
+    ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-concept">
+      <div class="mode-hint">
+        💡 <b>Concept Explainer</b> — explains concepts at your chosen difficulty level.<br/>
+        Agents used: <b>concept_explainer</b> · <b>summarizer</b> · <b>search_agent</b> (fallback)
+      </div>
+      <div class="input-row">
+        <input type="text" id="conceptQuery"
+          placeholder="e.g. What is Dijkstra's algorithm? How does hashing work?"
+          onkeydown="if(event.key==='Enter')sendConcept()"/>
+        <select id="conceptLevel" style="width:165px">
+          <option value="Beginner">🟢 Beginner</option>
+          <option value="Intermediate">🟡 Intermediate</option>
+          <option value="Exam-ready">🔴 Exam-ready</option>
+        </select>
+        <button class="btn btn-primary btn-sm" style="width:110px" onclick="sendConcept()">Explain</button>
+      </div>
+      <div class="flow-bar" id="conceptFlow">
+        <div class="flow-node router">Router</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node tool" id="conceptFlowTool"></div>
+        <span class="flow-arrow" id="conceptFlowArrow2" style="display:none">→</span>
+        <div class="flow-node subtool" id="conceptFlowSubtool" style="display:none"></div>
+      </div>
+      <div class="response-box" id="conceptRes">Choose a difficulty level and ask your concept question...</div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TAB 4 — Practice Mode
+         Agents: mcq_generator (default),
+                 concept_explainer (explain queries),
+                 exam_prep_agent (plan queries),
+                 summarizer (summary queries),
+                 search_agent (fallback)
+         Endpoints: /practice/generate, /practice/hint, /practice/report
+    ══════════════════════════════════════ -->
+    <div class="tab-content" id="tab-practice">
+      <div class="mode-hint">
+        📝 <b>Practice Mode</b> — generates MCQs, evaluates answers, gives detailed report.<br/>
+        Agents used: <b>mcq_generator</b> · <b>concept_explainer</b> · <b>exam_prep_agent</b> · <b>summarizer</b> · <b>search_agent</b> (fallback)
+      </div>
+
+      <div class="practice-gen-bar">
+        <div>
+          <label class="field-label">Topic / Chapter</label>
+          <input type="text" id="practiceTopicInput"
+            placeholder="e.g. Sorting algorithms, Newton's Laws, DBMS Architecture..."/>
+        </div>
+        <div style="flex:0 0 210px">
+          <label class="field-label">&nbsp;</label>
+          <button class="btn btn-success" onclick="generatePractice()">🚀 Generate 5 Questions</button>
+        </div>
+        <div style="flex:0 0 110px">
+          <label class="field-label">&nbsp;</label>
+          <button class="btn btn-secondary" onclick="resetPractice()">🔄 Reset</button>
+        </div>
+      </div>
+
+      <div class="progress-wrap" id="progressWrap" style="display:none">
+        <div class="progress-top">
+          <span id="progressLabel" style="font-size:.82rem;color:#556070">0/5 answered</span>
+          <span id="scoreLabel"    style="font-size:.875rem;font-weight:600;color:#3dbe77"></span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div id="questionsWrap"></div>
+
+      <div class="submit-section" id="submitSection">
+        <hr class="divider"/>
+        <p>You've answered all 5 questions — ready to see your full performance report?</p>
+        <button class="btn btn-primary" style="width:240px;padding:13px"
+          id="reportBtn" onclick="generateReport()">
+          📊 Submit &amp; Generate Report
+        </button>
+      </div>
+
+      <div class="report-card" id="reportCard">
+        <h2>📊 Performance Report</h2>
+        <div id="scorePill"></div>
+        <div class="report-body" id="reportBody"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ════════════════════════════════
+//  STATE
+// ════════════════════════════════
+const S = { questions:[], selected:{}, submitted:{}, hintShown:{}, topic:"" };
+const model = () => document.getElementById("modelSelect").value;
+
+// ════ TABS ════
+function switchTab(id) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+  const ids = ["chat","syllabus","concept","practice"];
+  document.querySelectorAll(".tab")[ids.indexOf(id)].classList.add("active");
+  document.getElementById(`tab-${id}`).classList.add("active");
+}
+
+// ════ FILE LIST ════
+document.getElementById("pdfInput").addEventListener("change", function(){
+  const list = document.getElementById("fileList");
+  list.innerHTML = "";
+  Array.from(this.files).forEach(f => {
+    const d = document.createElement("div");
+    d.className   = "file-item";
+    d.textContent = "📄 " + f.name;
+    list.appendChild(d);
+  });
+});
+
+// ════ UPLOAD ════
+async function uploadFiles() {
+  const files = document.getElementById("pdfInput").files;
+  if (!files.length) { setMsg("uploadMsg","Select PDF files first","err"); return; }
+  const fd = new FormData();
+  Array.from(files).forEach(f => fd.append("files", f));
+  fd.append("model_id", model());
+  const btn = document.getElementById("uploadBtn");
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="loader"></span> Indexing...';
+  setMsg("uploadMsg","Uploading and indexing...","info");
+  try {
+    const res  = await fetch("/upload",{ method:"POST", body:fd });
+    const data = await res.json();
+    if (data.status === "success") {
+      document.getElementById("uploadBadge").textContent = `✅ ${files.length} PDF(s) ready`;
+      document.getElementById("uploadBadge").className   = "badge badge-ok";
+      setMsg("uploadMsg", data.message, "ok");
+    } else {
+      setMsg("uploadMsg", data.detail||"Upload failed.", "err");
+    }
+  } catch(e) { setMsg("uploadMsg","Error: "+e.message,"err"); }
+  finally { btn.disabled=false; btn.innerHTML="⬆️ Upload & Index"; }
+}
+
+// ════ SHARED CHAT HELPER ════
+async function postChat(mode, query, extra={}) {
+  const res = await fetch("/chat",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ query, mode, model_id:model(), ...extra })
+  });
+  return res.json();
+}
+
+function setLoading(id, txt="Processing...") {
+  const el = document.getElementById(id);
+  el.className   = "response-box loading";
+  el.textContent = "⏳ " + txt;
+}
+function setResponse(id, txt) {
+  const el = document.getElementById(id);
+  el.className   = "response-box";
+  el.textContent = txt;
+}
+
+// Show agent flow bar
+function showFlow(prefix, agent, subtool) {
+  const bar = document.getElementById(`${prefix}Flow`);
+  if (!bar) return;
+  bar.style.display = "flex";
+  document.getElementById(`${prefix}FlowTool`).textContent = agent;
+  const arrow2  = document.getElementById(`${prefix}FlowArrow2`);
+  const sub     = document.getElementById(`${prefix}FlowSubtool`);
+  if (subtool && subtool !== "none") {
+    arrow2.style.display = "inline";
+    sub.style.display    = "inline";
+    sub.textContent      = subtool;
+  } else {
+    arrow2.style.display = "none";
+    sub.style.display    = "none";
+  }
+}
+
+// ════════════════════════════════
+//  TAB 1 — ALL-IN-ONE CHAT
+// ════════════════════════════════
+async function sendChat() {
+  const q = document.getElementById("chatQuery").value.trim();
+  if (!q) return;
+  setLoading("chatRes","Routing query to best agent...");
+  document.getElementById("chatFlow").style.display = "none";
+  try {
+    const data = await postChat("🤖 All-in-one Chat", q);
+    if (data.status === "success") {
+      setResponse("chatRes", data.response);
+      showFlow("chat", data.agent, data.subtool);
+    } else {
+      setResponse("chatRes","Error: "+(data.detail||"Unknown error."));
+    }
+  } catch(e) { setResponse("chatRes","Error: "+e.message); }
+}
+
+// ════════════════════════════════
+//  TAB 2 — SYLLABUS EXPLAINER
+// ════════════════════════════════
+function updateDaysInfo() {
+  const days = document.getElementById("examDays").value;
+  const box  = document.getElementById("daysInfo");
+  if (!days) { box.style.display="none"; return; }
+  const d = parseInt(days);
+  if (d <= 2) {
+    box.className   = "days-info emergency";
+    box.textContent = `🚨 EMERGENCY MODE — Only ${days} day(s) left! Crash plan will focus on High priority topics only.`;
+  } else if (d <= 5) {
+    box.className   = "days-info urgent";
+    box.textContent = `🔥 URGENT — ${days} days left. Tight crash plan activated, High priority first.`;
+  } else {
+    box.className   = "days-info normal";
+    box.textContent = `📅 ${days} days until exam. A structured ${days}-day revision plan will be generated.`;
+  }
+  box.style.display = "block";
+}
+
+async function sendSyllabus() {
+  const q    = document.getElementById("syllabusQuery").value.trim() || "Explain entire syllabus";
+  const days = document.getElementById("examDays").value;
+  updateDaysInfo();
+  document.getElementById("syllabusFlow").style.display = "none";
+  setLoading("syllabusRes", days
+    ? `Generating ${days}-day revision plan...`
+    : "Generating syllabus roadmap..."
+  );
+  try {
+    const data = await postChat("📖 Syllabus Explainer", q, { exam_days: days || null });
+    if (data.status === "success") {
+      setResponse("syllabusRes", data.response);
+      showFlow("syllabus", data.agent, data.subtool);
+    } else {
+      setResponse("syllabusRes","Error: "+(data.detail||"Unknown error."));
+    }
+  } catch(e) { setResponse("syllabusRes","Error: "+e.message); }
+}
+
+// ════════════════════════════════
+//  TAB 3 — CONCEPT EXPLAINER
+// ════════════════════════════════
+async function sendConcept() {
+  const q     = document.getElementById("conceptQuery").value.trim();
+  const level = document.getElementById("conceptLevel").value;
+  if (!q) return;
+  document.getElementById("conceptFlow").style.display = "none";
+  setLoading("conceptRes",`Explaining at ${level} level...`);
+  try {
+    const data = await postChat("💡 Concept Explainer", q, { concept_level:level });
+    if (data.status === "success") {
+      setResponse("conceptRes", data.response);
+      showFlow("concept", data.agent, data.subtool);
+    } else {
+      setResponse("conceptRes","Error: "+(data.detail||"Unknown error."));
+    }
+  } catch(e) { setResponse("conceptRes","Error: "+e.message); }
+}
+
+// ════════════════════════════════
+//  TAB 4 — PRACTICE MODE
+// ════════════════════════════════
+async function generatePractice() {
+  const topic = document.getElementById("practiceTopicInput").value.trim();
+  if (!topic) { alert("Please enter a topic."); return; }
+  resetPracticeState(); S.topic = topic;
+  const wrap = document.getElementById("questionsWrap");
+  wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#556070">
+    <span class="loader"></span> Generating 5 questions on <b>"${topic}"</b>...
+  </div>`;
+  document.getElementById("submitSection").style.display = "none";
+  document.getElementById("reportCard").style.display    = "none";
+  document.getElementById("progressWrap").style.display  = "none";
+  try {
+    const res  = await fetch("/practice/generate",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ topic, model_id:model() })
+    });
+    const data = await res.json();
+    if (data.status === "success" && data.questions.length > 0) {
+      S.questions = data.questions;
+      renderAllQuestions();
+      document.getElementById("progressWrap").style.display = "block";
+      updateProgress();
+    } else {
+      wrap.innerHTML = `<div style="color:#e04040;padding:20px">❌ ${data.detail||"Failed to generate questions."}</div>`;
+    }
+  } catch(e) {
+    wrap.innerHTML = `<div style="color:#e04040;padding:20px">Error: ${e.message}</div>`;
+  }
+}
+
+function renderAllQuestions() {
+  const wrap = document.getElementById("questionsWrap");
+  wrap.innerHTML = "";
+  S.questions.forEach((q,i) => wrap.appendChild(buildCard(q,i)));
+}
+
+function buildCard(q, idx) {
+  const card = document.createElement("div");
+  card.className = "q-card"; card.id = `qcard-${idx}`;
+  const opts = ["a","b","c","d"].filter(l => q.options[l]).map(l =>
+    `<button class="opt-btn" id="opt-${idx}-${l}" onclick="selectOpt(${idx},'${l}')">
+      <strong>${l})</strong> ${q.options[l]}
+    </button>`
+  ).join("");
+  card.innerHTML = `
+    <div class="q-num">Question ${idx+1} of ${S.questions.length}</div>
+    <div class="q-text">${q.question}</div>
+    <div class="options" id="opts-${idx}">${opts}</div>
+    <div class="q-actions" id="actions-${idx}">
+      <button class="btn btn-primary btn-sm" onclick="submitAns(${idx})">✅ Submit</button>
+      <button class="btn btn-secondary btn-sm" onclick="fetchHint(${idx})">💡 Hint</button>
+    </div>
+    <div class="hint-box"    id="hint-${idx}"></div>
+    <div class="result-box"  id="result-${idx}"></div>
+    <div class="exp-toggle"  id="expToggle-${idx}"  style="display:none"
+         onclick="toggleExp(${idx})">📖 Show Explanation</div>
+    <div class="exp-content" id="expContent-${idx}"></div>
+  `;
+  return card;
+}
+
+function selectOpt(idx, letter) {
+  if (S.submitted[idx]) return;
+  S.selected[idx] = letter;
+  ["a","b","c","d"].forEach(l => {
+    const b = document.getElementById(`opt-${idx}-${l}`);
+    if (b) b.classList.toggle("sel", l === letter);
+  });
+}
+
+async function fetchHint(idx) {
+  if (S.hintShown[idx]) return;
+  const box = document.getElementById(`hint-${idx}`);
+  box.textContent = "Loading hint..."; box.style.display = "block";
+  try {
+    const res  = await fetch("/practice/hint",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ question_index:idx })
+    });
+    const data = await res.json();
+    box.textContent  = "💡 " + (data.hint || "No hint available.");
+    S.hintShown[idx] = true;
+  } catch(e) { box.textContent = "Could not load hint."; }
+}
+
+function submitAns(idx) {
+  const chosen = S.selected[idx];
+  if (!chosen) { alert("Select an option first."); return; }
+  const q         = S.questions[idx];
+  const isCorrect = chosen.toLowerCase() === q.correct_letter.toLowerCase();
+  S.submitted[idx] = {
+    question_index: idx,
+    question:       q.question,
+    chosen_letter:  chosen,
+    user_option:    q.options[chosen] || chosen,
+    correct_letter: q.correct_letter,
+    correct_full:   q.correct_full,
+    solution:       q.solution,
+    is_correct:     isCorrect
+  };
+  ["a","b","c","d"].forEach(l => {
+    const b = document.getElementById(`opt-${idx}-${l}`);
+    if (!b) return;
+    b.disabled = true; b.classList.remove("sel");
+    if (l === q.correct_letter.toLowerCase())           b.classList.add("opt-right");
+    else if (l === chosen.toLowerCase() && !isCorrect)  b.classList.add("opt-wrong");
+  });
+  document.getElementById(`actions-${idx}`).style.display = "none";
+  const rb = document.getElementById(`result-${idx}`);
+  rb.style.display = "block";
+  if (isCorrect) {
+    rb.className = "result-box r-ok";
+    rb.innerHTML = `✅ <strong>Correct!</strong> ${q.options[chosen]}`;
+  } else {
+    rb.className = "result-box r-err";
+    rb.innerHTML = `❌ <strong>Wrong.</strong> You chose: ${chosen}) ${q.options[chosen]||""}<br>
+                    ✅ <strong>Correct:</strong> ${q.correct_letter}) ${q.correct_full}`;
+  }
+  document.getElementById(`expContent-${idx}`).textContent = q.solution;
+  document.getElementById(`expToggle-${idx}`).style.display = "block";
+  document.getElementById(`qcard-${idx}`).className =
+    `q-card ${isCorrect ? "state-correct" : "state-wrong"}`;
+  updateProgress();
+  if (Object.keys(S.submitted).length === S.questions.length) {
+    const sec = document.getElementById("submitSection");
+    sec.style.display = "block";
+    sec.scrollIntoView({ behavior:"smooth" });
+  }
+}
+
+function toggleExp(idx) {
+  const c    = document.getElementById(`expContent-${idx}`);
+  const t    = document.getElementById(`expToggle-${idx}`);
+  const show = c.style.display !== "block";
+  c.style.display = show ? "block" : "none";
+  t.textContent   = show ? "📖 Hide Explanation" : "📖 Show Explanation";
+}
+
+function updateProgress() {
+  const total    = S.questions.length;
+  const answered = Object.keys(S.submitted).length;
+  const correct  = Object.values(S.submitted).filter(a => a.is_correct).length;
+  document.getElementById("progressLabel").textContent = `${answered}/${total} answered`;
+  document.getElementById("progressFill").style.width  = `${(answered/total)*100}%`;
+  if (answered > 0)
+    document.getElementById("scoreLabel").textContent = `✅ ${correct}/${answered} correct`;
+}
+
+async function generateReport() {
+  const answers = Object.values(S.submitted);
+  if (answers.length < S.questions.length) { alert("Answer all questions first."); return; }
+  const card = document.getElementById("reportCard");
+  const body = document.getElementById("reportBody");
+  card.style.display = "block";
+  body.textContent   = "⏳ Generating your personalised performance report...";
+  card.scrollIntoView({ behavior:"smooth" });
+  document.getElementById("reportBtn").disabled = true;
+  try {
+    const res  = await fetch("/practice/report",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ topic:S.topic, answers, model_id:model() })
+    });
+    const data = await res.json();
+    if (data.status === "success") {
+      const pct = data.percentage;
+      let color, emoji;
+      if      (pct === 100) { color="#27ae60"; emoji="🏆 Perfect!"; }
+      else if (pct >= 80)   { color="#27ae60"; emoji="🎉 Excellent!"; }
+      else if (pct >= 60)   { color="#e0a020"; emoji="👍 Good job!"; }
+      else if (pct >= 40)   { color="#e07020"; emoji="📖 Keep going!"; }
+      else                  { color="#e04040"; emoji="📚 Needs work!"; }
+      document.getElementById("scorePill").innerHTML =
+        `<div class="score-pill"
+          style="background:${color}22;color:${color};border:2px solid ${color}">
+          ${emoji} ${data.score}/${data.total} (${pct}%)
+        </div>`;
+      body.textContent = data.report;
+    } else {
+      body.textContent = "Error: " + (data.detail || "Unknown error.");
+    }
+  } catch(e) { body.textContent = "Error: " + e.message; }
+}
+
+// ════ RESET ════
+function resetPractice() {
+  resetPracticeState();
+  document.getElementById("questionsWrap").innerHTML    = "";
+  document.getElementById("progressWrap").style.display = "none";
+  document.getElementById("submitSection").style.display= "none";
+  document.getElementById("reportCard").style.display   = "none";
+  document.getElementById("practiceTopicInput").value   = "";
+  document.getElementById("progressFill").style.width   = "0%";
+  document.getElementById("progressLabel").textContent  = "0/5 answered";
+  document.getElementById("scoreLabel").textContent     = "";
+  document.getElementById("reportBtn").disabled         = false;
+}
+function resetPracticeState() {
+  S.questions=[]; S.selected={}; S.submitted={}; S.hintShown={}; S.topic="";
+}
+function setMsg(id, text, type) {
+  const el     = document.getElementById(id);
+  el.className = `msg-${type}`;
+  el.textContent = text;
+}
+</script>
+</body>
+</html>
