@@ -1,0 +1,39 @@
+# Node.js
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+.dist/
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+venv/
+env/
+.venv/
+
+# Vector store data
+vector_store_data/
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
