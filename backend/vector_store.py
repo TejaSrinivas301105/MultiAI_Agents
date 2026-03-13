@@ -55,20 +55,31 @@ def process_pdf(file_path: str, original_filename: str, embedding_model) -> FAIS
         except Exception:
             pass  # fall through to recompute
 
-    loader = PyMuPDFLoader(file_path)
-    documents = loader.load()
-    for doc in documents:
-        doc.metadata.update({
-            "source": original_filename,
-            "hash": pdf_hash,
-            "uploaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        })
+    try:
+        loader = PyMuPDFLoader(file_path)
+        documents = loader.load()
+        
+        if not documents:
+            raise ValueError(f"No content extracted from PDF: {original_filename}")
+        
+        for doc in documents:
+            doc.metadata.update({
+                "source": original_filename,
+                "hash": pdf_hash,
+                "uploaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            })
 
-    splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    docs = splitter.split_documents(documents)
-    db = FAISS.from_documents(docs, embedding_model)
-    db.save_local(vector_path)
-    return db
+        splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        docs = splitter.split_documents(documents)
+        
+        if not docs:
+            raise ValueError(f"No text chunks created from PDF: {original_filename}")
+        
+        db = FAISS.from_documents(docs, embedding_model)
+        db.save_local(vector_path)
+        return db
+    except Exception as e:
+        raise Exception(f"Failed to process PDF '{original_filename}': {str(e)}")
 
 
 def build_retriever(file_paths: List[dict], embedding_model):
@@ -76,13 +87,25 @@ def build_retriever(file_paths: List[dict], embedding_model):
     Build a merged FAISS retriever from multiple PDFs.
     file_paths: list of {"path": str, "name": str}
     """
+    if not file_paths:
+        raise ValueError("No files provided to build retriever")
+    
     all_dbs = []
+    errors = []
+    
     for fp in file_paths:
-        db = process_pdf(fp["path"], fp["name"], embedding_model)
-        all_dbs.append(db)
-
+        try:
+            db = process_pdf(fp["path"], fp["name"], embedding_model)
+            all_dbs.append(db)
+        except Exception as e:
+            errors.append(f"{fp['name']}: {str(e)}")
+    
     if not all_dbs:
-        return None
+        error_msg = "Failed to process any PDFs. Errors: " + "; ".join(errors)
+        raise Exception(error_msg)
+    
+    if errors:
+        print(f"⚠️ Warning: Some PDFs failed to process: {'; '.join(errors)}")
 
     merged = all_dbs[0]
     for extra_db in all_dbs[1:]:

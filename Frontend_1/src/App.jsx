@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { fetchModels, sendChat, sendQuery } from "./api";
-import ChatArea from "./components/ChatArea";
-import Dashboard from "./components/Dashboard";
-import MessageInput from "./components/MessageInput";
-import Sidebar from "./components/Sidebar";
+import ChatArea from "./Components/ChartArea";
+import Dashboard from "./Components/Dashboard";
+import MessageInput from "./Components/MessageInput";
+import Sidebar from "./Components/Sidebar";
+import './App.css';
 
 function Toast({ toast }) {
   if (!toast) return null;
@@ -29,7 +30,6 @@ function MainApp() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // Fetch available models on mount
   useEffect(() => {
     fetchModels()
       .then((data) => {
@@ -39,7 +39,6 @@ function MainApp() {
         }
       })
       .catch(() => {
-        // Fallback models if backend is not ready
         setModels([
           { key: "gpt-oss-120b", display_name: "GPT-OSS 120B" },
           { key: "gpt-oss-20b", display_name: "GPT-OSS 20B" },
@@ -48,7 +47,6 @@ function MainApp() {
       });
   }, []);
 
-  // Handle initial agent greeting from navigation state
   useEffect(() => {
     if (initialAgent && messages.length === 0) {
       setIsLoading(true);
@@ -88,24 +86,34 @@ function MainApp() {
 
   const handleSend = useCallback(
     async (text) => {
-      // Add user message
       const userMsg = { role: "user", text };
       setMessages((prev) => [...prev, userMsg]);
       setIsLoading(true);
-
-      // If continuing an active conversation, we keep the agent UI updated
-      // But we let the backend decide the actual routing based on the message
 
       try {
         let result;
         const hasFiles = uploadedFiles.length > 0;
 
+        // Add agent hint to query if an agent was pre-selected
+        let queryText = text;
+        if (initialAgent && initialAgent !== "chat_agent") {
+          const agentHints = {
+            "summarizer": "Summarize: ",
+            "mcq_generator": "Generate MCQs: ",
+            "notes_maker": "Make notes: ",
+            "exam_prep_agent": "Prepare exam questions: ",
+            "concept_explainer": "Explain: ",
+          };
+          const hint = agentHints[initialAgent];
+          if (hint && !text.toLowerCase().startsWith(hint.toLowerCase())) {
+            queryText = hint + text;
+          }
+        }
+
         if (hasFiles) {
-          // Use the RAG pipeline
-          result = await sendQuery(text, selectedModel);
+          result = await sendQuery(queryText, selectedModel);
         } else {
-          // No files uploaded — use chat agent
-          result = await sendChat(text, selectedModel);
+          result = await sendChat(queryText, selectedModel);
         }
 
         const assistantMsg = {
@@ -133,7 +141,7 @@ function MainApp() {
         setIsLoading(false);
       }
     },
-    [selectedModel, uploadedFiles, showToast]
+    [selectedModel, uploadedFiles, showToast, initialAgent]
   );
 
   return (
